@@ -1,0 +1,12 @@
+{
+    "require": {
+        "bref/bref": "^1.3",
+        "aws/aws-sdk-php": "^3.204"
+    },
+    "autoload": {
+        "classmap": ["src/"],
+        "files": [
+            "utils.php"
+        ]
+    }
+}

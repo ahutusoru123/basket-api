@@ -1,0 +1,118 @@
+service: basket-api
+
+custom:
+  productCatalogueTable: 'product-catalogue-${self:provider.stage}'
+  basketTable: 'basket-${self:provider.stage}'
+  configurationTable: 'configuration-${self:provider.stage}'
+
+provider:
+  name: aws
+  region: eu-central-1
+  runtime: provided.al2
+  environment:
+    PRODUCT_CATALOGUE_TABLE: ${self:custom.productCatalogueTable}
+    BASKET_TABLE: ${self:custom.basketTable}
+    CONFIGURATION_TABLE: ${self:custom.configurationTable}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource:
+        - { "Fn::GetAtt": [ "ProductCatalogue", "Arn" ] }
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource:
+        - { "Fn::GetAtt": [ "Basket", "Arn" ] }
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource:
+        - { "Fn::GetAtt": [ "Configuration", "Arn" ] }
+
+plugins:
+  - ./vendor/bref/bref
+
+functions:
+  addProductToBasket:
+    handler: public/add_route.php
+    description: ''
+    timeout: 28 # in seconds (API Gateway has a timeout of 29 seconds)
+    layers:
+      - ${bref:layer.php-80-fpm}
+    events:
+      - httpApi: 'POST /add'
+      - schedule:
+          rate: rate(5 minutes)
+          input:
+            warmer: true
+
+  getTotalBasketPrice:
+    handler: public/total_route.php
+    description: ''
+    timeout: 28 # in seconds (API Gateway has a timeout of 29 seconds)
+    layers:
+      - ${bref:layer.php-80-fpm}
+    events:
+      - httpApi: 'GET /total'
+      - schedule:
+          rate: rate(5 minutes)
+          input:
+            warmer: true
+
+resources:
+  Resources:
+    ProductCatalogue:
+      Type: 'AWS::DynamoDB::Table'
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: code
+            AttributeType: S
+        KeySchema:
+          - AttributeName: code
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:custom.productCatalogueTable}
+    Basket:
+      Type: 'AWS::DynamoDB::Table'
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:custom.basketTable}
+    Configuration:
+      Type: 'AWS::DynamoDB::Table'
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: type
+            AttributeType: S
+        KeySchema:
+          - AttributeName: type
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:custom.configurationTable}
